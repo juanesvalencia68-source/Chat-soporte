@@ -1,0 +1,6 @@
+{
+  "name": "SoportePro - Chat Multiprofil de Agentes",
+  "description": "Plataforma de soporte y chat en vivo para clientes con selección dinámica de perfiles de agentes, gestión de tickets, notas internas y sincronización en tiempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
