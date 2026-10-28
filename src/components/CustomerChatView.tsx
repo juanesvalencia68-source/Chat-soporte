@@ -55,9 +55,9 @@ export const CustomerChatView: React.FC<Props> = ({ isEmbedded = false }) => {
   // Referred Team Leader if customer arrived via exclusive link: ?leader=leader-jeremy
   const [referredLeader, setReferredLeader] = useState<AgentProfile | null>(null);
 
-  // New ticket form state
-  const [customerName, setCustomerName] = useState('Mariana Soto');
-  const [customerEmail, setCustomerEmail] = useState('mariana.soto@innovasolutions.mx');
+  // New ticket form state (clean on every refresh)
+  const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [selectedDept, setSelectedDept] = useState<DepartmentId>('soporte');
   const [subjectText, setSubjectText] = useState('');
   const [firstMessageText, setFirstMessageText] = useState('');
@@ -285,6 +285,7 @@ export const CustomerChatView: React.FC<Props> = ({ isEmbedded = false }) => {
                 <input
                   type="text"
                   required
+                  placeholder="Ej. Juan Pérez"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -295,6 +296,7 @@ export const CustomerChatView: React.FC<Props> = ({ isEmbedded = false }) => {
                 <input
                   type="email"
                   required
+                  placeholder="tu.correo@ejemplo.com"
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"

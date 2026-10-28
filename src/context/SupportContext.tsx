@@ -41,6 +41,7 @@ interface SupportContextType {
   takeTicket: (ticketId: string) => Promise<void>;
   transferTicket: (ticketId: string, targetAgentId: string, handoverNote?: string) => Promise<void>;
   resolveTicket: (ticketId: string, csatScore?: number, comment?: string) => Promise<void>;
+  changeTicketDepartment: (ticketId: string, newDept: DepartmentId) => Promise<void>;
   answeringAsAgentId: string | null;
   setAnsweringAsAgentId: (agentId: string | null) => void;
   sendTyping: (ticketId: string, isTyping: boolean, senderType: 'customer' | 'agent') => void;
@@ -55,7 +56,7 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<Record<string, Message[]>>(INITIAL_MESSAGES);
   const [activeAgentId, setActiveAgentId] = useState<string>('agent-carlos');
   const [selectedAgentTicketId, setSelectedAgentTicketId] = useState<string | null>('TICK-4091');
-  const [activeCustomerTicketId, setActiveCustomerTicketId] = useState<string | null>('TICK-4091');
+  const [activeCustomerTicketId, setActiveCustomerTicketId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('client');
   const [activeLeaderId, setActiveLeaderId] = useState<string | null>(null);
   const [answeringAsAgentId, setAnsweringAsAgentId] = useState<string | null>(null);
@@ -876,6 +877,53 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
     [activeAgent, tickets, sendWsOrBroadcast]
   );
 
+  // Reclassify / Change ticket department (Full Cross-Area Authority for Team Leaders)
+  const changeTicketDepartment = useCallback(
+    async (ticketId: string, newDept: DepartmentId) => {
+      const ticket = tickets.find((t) => t.id === ticketId);
+      if (!ticket) return;
+
+      const deptNames: Record<DepartmentId, string> = {
+        soporte: 'Soporte',
+        procesos: 'Procesos',
+        estafa: 'Estafa',
+      };
+
+      const updated: Ticket = {
+        ...ticket,
+        department: newDept,
+        departmentName: deptNames[newDept],
+        updatedAt: Date.now(),
+      };
+
+      const sysMsg: Message = {
+        id: `sys-${Date.now()}`,
+        ticketId,
+        senderType: 'system',
+        senderId: 'system',
+        senderName: 'Sistema',
+        content: `El caso ha sido reclasificado al departamento de ${deptNames[newDept]} por la supervisión de ${activeAgent.name}.`,
+        timestamp: Date.now(),
+      };
+
+      setTickets((prev) => prev.map((t) => (t.id === ticketId ? updated : t)));
+      setMessages((prev) => ({
+        ...prev,
+        [ticketId]: [...(prev[ticketId] || []), sysMsg],
+      }));
+
+      sendWsOrBroadcast('update_ticket', updated);
+      sendWsOrBroadcast('post_message', sysMsg);
+
+      fetch(`/api/tickets/${ticketId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      }).catch(() => {});
+    },
+    [activeAgent, tickets, sendWsOrBroadcast]
+  );
+
   // Typing state
   const typingTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const sendTyping = useCallback(
@@ -928,7 +976,7 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
     setMessages(JSON.parse(JSON.stringify(INITIAL_MESSAGES)));
     setActiveAgentId('agent-carlos');
     setSelectedAgentTicketId('TICK-4091');
-    setActiveCustomerTicketId('TICK-4091');
+    setActiveCustomerTicketId(null);
     sendWsOrBroadcast('reset_demo', {});
   }, [sendWsOrBroadcast]);
 
@@ -966,6 +1014,7 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
         takeTicket,
         transferTicket,
         resolveTicket,
+        changeTicketDepartment,
         sendTyping,
         resetDemoData,
       }}

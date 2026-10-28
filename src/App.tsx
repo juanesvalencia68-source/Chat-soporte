@@ -105,10 +105,11 @@ function AppContent() {
         return;
       }
 
-      // 3. Default or /chat-soporte -> Customer portal
+      // 3. Default or /chat-soporte -> Customer portal (always start with a fresh new request form)
+      setActiveCustomerTicketId(null);
       setViewMode('client');
     }
-  }, [agents, setViewMode, setActiveLeaderId]);
+  }, [agents, setViewMode, setActiveLeaderId, setActiveCustomerTicketId]);
 
   // Listen to hash changes (e.g. user types #leader or #agente without full reload)
   useEffect(() => {

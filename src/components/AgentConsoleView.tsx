@@ -48,6 +48,7 @@ export const AgentConsoleView: React.FC<Props> = ({ isEmbedded = false }) => {
     sendMessage,
     takeTicket,
     resolveTicket,
+    changeTicketDepartment,
     sendTyping,
     typingUsers,
     lockLeaderSession,
@@ -58,6 +59,7 @@ export const AgentConsoleView: React.FC<Props> = ({ isEmbedded = false }) => {
   // Search & filter
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'mine' | 'team' | 'resolved'>('all');
+  const [deptFilter, setDeptFilter] = useState<'all' | 'soporte' | 'procesos' | 'estafa'>('all');
   const [teamModalOpen, setTeamModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
 
@@ -71,11 +73,8 @@ export const AgentConsoleView: React.FC<Props> = ({ isEmbedded = false }) => {
       : null;
   const effectiveSender = impersonatedAgent || activeAgent;
 
-  const teamAgentsList = agents.filter(
-    (a) =>
-      a.roleType === 'agent' &&
-      (myTeamAgentIds.includes(a.id) || a.department === activeAgent.department)
-  );
+  // Leaders have global authority across all support, procesos, and estafa specialists
+  const teamAgentsList = agents.filter((a) => a.roleType === 'agent');
 
   // Active ticket
   const currentTicket = tickets.find((t) => t.id === selectedAgentTicketId) || tickets[0] || null;
@@ -95,6 +94,8 @@ export const AgentConsoleView: React.FC<Props> = ({ isEmbedded = false }) => {
 
   // Filter tickets
   const filteredTickets = tickets.filter((t) => {
+    if (deptFilter !== 'all' && t.department !== deptFilter) return false;
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchSubject = t.subject.toLowerCase().includes(q);
@@ -306,6 +307,29 @@ export const AgentConsoleView: React.FC<Props> = ({ isEmbedded = false }) => {
             </button>
           </div>
 
+          {/* Department / Category Quick Filter */}
+          <div className="flex items-center gap-1 px-3 py-1.5 bg-slate-100/70 border-b border-slate-200 overflow-x-auto text-[11px]">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0 mr-0.5">Área:</span>
+            {[
+              { id: 'all', label: 'Todas' },
+              { id: 'soporte', label: 'Soporte' },
+              { id: 'procesos', label: 'Procesos' },
+              { id: 'estafa', label: 'Estafa' },
+            ].map((d) => (
+              <button
+                key={d.id}
+                onClick={() => setDeptFilter(d.id as any)}
+                className={`px-2 py-0.5 rounded-full font-medium transition-colors shrink-0 ${
+                  deptFilter === d.id
+                    ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                    : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+
           {/* Ticket list */}
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
             {filteredTickets.length === 0 ? (
@@ -341,7 +365,17 @@ export const AgentConsoleView: React.FC<Props> = ({ isEmbedded = false }) => {
 
                     <div className="flex items-center justify-between mt-2 pt-1 text-[10px] text-slate-600">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-slate-600">{t.departmentName}</span>
+                        <span
+                          className={`px-1.5 py-0.2 rounded font-semibold text-[9px] uppercase tracking-wider ${
+                            t.department === 'soporte'
+                              ? 'bg-blue-100 text-blue-800'
+                              : t.department === 'procesos'
+                              ? 'bg-amber-100 text-amber-900'
+                              : 'bg-rose-100 text-rose-800'
+                          }`}
+                        >
+                          {t.departmentName}
+                        </span>
                         <span>·</span>
                         <span className="font-mono">{t.id}</span>
                       </div>
@@ -387,10 +421,31 @@ export const AgentConsoleView: React.FC<Props> = ({ isEmbedded = false }) => {
                     </span>
                     <h3 className="text-sm font-bold text-slate-900 truncate">{currentTicket.subject}</h3>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Cliente: <strong className="text-slate-700">{currentTicket.customer.name}</strong> ({currentTicket.customer.email})
-                    · {currentTicket.customer.tier}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="text-xs text-slate-500">
+                      Cliente: <strong className="text-slate-700">{currentTicket.customer.name}</strong> ({currentTicket.customer.email})
+                    </span>
+                    <span className="text-slate-300">·</span>
+                    <div className="flex items-center gap-1 text-[11px] text-slate-600">
+                      <span className="font-medium text-slate-500">Área:</span>
+                      <select
+                        value={currentTicket.department}
+                        onChange={(e) => changeTicketDepartment(currentTicket.id, e.target.value as any)}
+                        className="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded px-2 py-0.5 cursor-pointer focus:outline-none"
+                        title="Cambiar categoría / área del caso (Soporte, Procesos o Estafa)"
+                      >
+                        <option value="soporte">Soporte Técnico</option>
+                        <option value="procesos">Procesos</option>
+                        <option value="estafa">Prevención / Estafa</option>
+                      </select>
+                      {isLeader && (
+                        <span className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded font-medium flex items-center gap-0.5">
+                          <Crown className="w-2.5 h-2.5 text-amber-600" />
+                          Gestión TL
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Operations & Handover Actions */}

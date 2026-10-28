@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSupport } from '../context/SupportContext';
-import { AgentProfile, Ticket, Attachment } from '../types/support';
+import { AgentProfile, Ticket, Attachment, DepartmentId } from '../types/support';
 import { buildCustomerChatLink, getLeaderChannelCode } from '../utils/channelLinks';
 import { ShareCustomerLinkModal } from './ShareCustomerLinkModal';
 import { TeamLeaderLoginModal } from './TeamLeaderLoginModal';
@@ -27,6 +27,7 @@ import {
   KeyRound,
   ExternalLink,
   ChevronDown,
+  Filter,
 } from 'lucide-react';
 
 interface Props {
@@ -50,6 +51,9 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
     switchActiveAgentProfile,
     answeringAsAgentId,
     setAnsweringAsAgentId,
+    changeTicketDepartment,
+    transferTicket,
+    resolveTicket,
   } = useSupport();
 
   const leader = agents.find((a) => a.id === leaderId && a.roleType === 'team_leader');
@@ -73,9 +77,12 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
   const [newAgentName, setNewAgentName] = useState('');
   const [newAgentEmail, setNewAgentEmail] = useState('');
   const [newAgentRole, setNewAgentRole] = useState('');
+  const [newAgentDepartment, setNewAgentDepartment] = useState<DepartmentId>('soporte');
 
-  // Search queue
+  // Search queue & Category management
   const [ticketSearch, setTicketSearch] = useState('');
+  const [areaFilter, setAreaFilter] = useState<'all' | 'soporte' | 'procesos' | 'estafa' | 'my_team'>('all');
+  const [transferringTicketId, setTransferringTicketId] = useState<string | null>(null);
 
   // Link copy state
   const [copiedLink, setCopiedLink] = useState(false);
@@ -175,21 +182,29 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
     (a) => a.roleType === 'agent' && !assignedAgentIds.includes(a.id)
   );
 
-  // Tickets for this leader's department, team, or VIP referral
-  const teamTickets = tickets.filter(
-    (t) =>
-      t.referredByLeaderId === leader.id ||
-      t.department === leader.department ||
-      assignedAgentIds.includes(t.assignedAgentId || '')
-  );
+  // Tickets filtered with global cross-department authority (Soporte, Procesos, Estafa)
+  const displayTickets = tickets.filter((t) => {
+    if (areaFilter === 'my_team') {
+      return (
+        t.referredByLeaderId === leader.id ||
+        assignedAgentIds.includes(t.assignedAgentId || '')
+      );
+    }
+    if (areaFilter !== 'all') {
+      return t.department === areaFilter;
+    }
+    return true;
+  });
 
-  const filteredTickets = teamTickets.filter((t) => {
+  const filteredTickets = displayTickets.filter((t) => {
     if (!ticketSearch.trim()) return true;
     const q = ticketSearch.toLowerCase();
     return (
       t.subject.toLowerCase().includes(q) ||
       t.customer.name.toLowerCase().includes(q) ||
-      t.id.toLowerCase().includes(q)
+      t.id.toLowerCase().includes(q) ||
+      t.departmentName.toLowerCase().includes(q) ||
+      (t.assignedAgentName && t.assignedAgentName.toLowerCase().includes(q))
     );
   });
 
@@ -215,6 +230,14 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
+  const handleQuickTransfer = (ticketId: string, targetAgentId: string) => {
+    setErrorMessage(null);
+    transferTicket(ticketId, targetAgentId, `Reasignado por el Team Leader ${leader.name}`);
+    setTransferringTicketId(null);
+    setSuccessMessage(`Ticket ${ticketId} transferido con éxito`);
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
   const handleCreateNewAgent = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -229,13 +252,21 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
       return;
     }
 
+    const deptNameMap: Record<DepartmentId, string> = {
+      soporte: 'Soporte Técnico',
+      procesos: 'Área de Procesos',
+      estafa: 'Prevención / Estafa',
+    };
+    const targetDept = newAgentDepartment || leader.department;
+    const targetDeptName = deptNameMap[targetDept] || 'Soporte Técnico';
+
     createAgentProfile({
       name: newAgentName.trim(),
       avatar: '/src/assets/images/agent_carlos_tech_1793027650432.jpg',
-      role: newAgentRole.trim() || `Especialista de ${leader.departmentName}`,
+      role: newAgentRole.trim() || `Especialista de ${targetDeptName}`,
       roleType: 'agent',
-      department: leader.department,
-      departmentName: leader.departmentName,
+      department: targetDept,
+      departmentName: targetDeptName,
       status: 'online',
       statusBio: `Agente asignado bajo la supervisión de ${leader.name}.`,
       email: newAgentEmail.trim() || `${newAgentName.toLowerCase().replace(/\s+/g, '.')}@soporte.empresa.com`,
@@ -450,15 +481,15 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
 
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
             <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-              <span>Tickets en Supervisión</span>
+              <span>Gestión Multisector</span>
               <MessageSquare className="w-4 h-4 text-emerald-600" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">{teamTickets.length}</span>
-              <span className="text-xs text-slate-500 font-medium">área {leader.departmentName}</span>
+              <span className="text-2xl font-bold text-slate-900">{tickets.length}</span>
+              <span className="text-xs text-slate-500 font-medium">casos globales</span>
             </div>
             <p className="text-[10px] text-slate-600 mt-1">
-              {teamTickets.filter((t) => t.status === 'pending').length} pendientes de respuesta
+              Soporte · Procesos · Estafa
             </p>
           </div>
 
@@ -498,7 +529,7 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
             }`}
           >
             <MessageSquare className="w-4 h-4 text-emerald-600" />
-            <span>Bandeja de Supervisión ({teamTickets.length})</span>
+            <span>Bandeja de Supervisión ({displayTickets.length})</span>
           </button>
 
           <button
@@ -618,7 +649,7 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
                   <button type="button" onClick={() => setShowNewAgentForm(false)} className="text-slate-400 hover:text-slate-600 text-sm">×</button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">Nombre Completo</label>
                     <input
@@ -631,10 +662,22 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
                     />
                   </div>
                   <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">Área / Categoría</label>
+                    <select
+                      value={newAgentDepartment}
+                      onChange={(e) => setNewAgentDepartment(e.target.value as DepartmentId)}
+                      className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold text-slate-800"
+                    >
+                      <option value="soporte">Soporte Técnico</option>
+                      <option value="procesos">Área de Procesos</option>
+                      <option value="estafa">Prevención / Estafa</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">Especialidad / Cargo</label>
                     <input
                       type="text"
-                      placeholder={`ej. Especialista en ${leader.departmentName}`}
+                      placeholder="ej. Especialista Senior"
                       value={newAgentRole}
                       onChange={(e) => setNewAgentRole(e.target.value)}
                       className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -795,16 +838,21 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
           </div>
         )}
 
-        {/* Tab 2: Bandeja de Supervisión */}
+        {/* Tab 2: Bandeja de Supervisión Multisector */}
         {activeTab === 'queue' && (
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs space-y-4 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  Cola de Tickets Supervisados · Departamento {leader.departmentName}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Tickets asignados a tus agentes o derivados mediante tu canal de Team Leader.
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Bandeja de Supervisión Multisector
+                  </h3>
+                  <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                    Soporte · Procesos · Estafa
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Gestiona, reclasifica de área, transfiere e interviene en cualquier caso de la organización sin restricción de categoría.
                 </p>
               </div>
 
@@ -812,7 +860,7 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Buscar en mi departamento..."
+                  placeholder="Buscar por cliente, ID o asunto..."
                   value={ticketSearch}
                   onChange={(e) => setTicketSearch(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -820,82 +868,226 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
               </div>
             </div>
 
-            <div className="divide-y divide-slate-100">
-              {filteredTickets.map((t) => (
-                <div
-                  key={t.id}
-                  className="py-3 px-2 hover:bg-slate-50/80 rounded-lg transition-colors flex flex-wrap items-center justify-between gap-3"
+            {/* Category / Area Filter Chips */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-b border-slate-100 pb-3">
+              <span className="text-xs font-semibold text-slate-500 flex items-center gap-1 mr-1">
+                <Filter className="w-3.5 h-3.5 text-slate-400" />
+                Área:
+              </span>
+              {[
+                { id: 'all', label: 'Todas las Áreas', count: tickets.length },
+                { id: 'soporte', label: 'Soporte', count: tickets.filter((t) => t.department === 'soporte').length },
+                { id: 'procesos', label: 'Procesos', count: tickets.filter((t) => t.department === 'procesos').length },
+                { id: 'estafa', label: 'Estafa / Fraude', count: tickets.filter((t) => t.department === 'estafa').length },
+                {
+                  id: 'my_team',
+                  label: 'Mi Equipo & VIP',
+                  count: tickets.filter(
+                    (t) => assignedAgentIds.includes(t.assignedAgentId || '') || t.referredByLeaderId === leader.id
+                  ).length,
+                },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setAreaFilter(f.id as any)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    areaFilter === f.id
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900'
+                  }`}
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold text-slate-900">{t.id}</span>
-                      <span className="text-xs font-semibold text-slate-800 truncate">{t.subject}</span>
-                      {t.referredByLeaderId === leader.id && (
-                        <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded-full flex items-center gap-0.5">
-                          <Crown className="w-2.5 h-2.5" />
-                          VIP Referral
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                      <span>Cliente: <strong className="text-slate-700">{t.customer.name}</strong></span>
-                      <span>·</span>
-                      <span>Asignado a: <strong className="text-indigo-600">{t.assignedAgentName || 'Sin asignar'}</strong></span>
-                      <span>·</span>
-                      <span className="font-mono text-[11px]">{new Date(t.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span
-                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                        t.status === 'pending'
-                          ? 'bg-amber-100 text-amber-800'
-                          : t.status === 'in_progress'
-                          ? 'bg-indigo-100 text-indigo-800'
-                          : 'bg-emerald-100 text-emerald-800'
-                      }`}
-                    >
-                      {t.status === 'pending' ? 'Pendiente' : t.status === 'in_progress' ? 'En Atención' : 'Resuelto'}
-                    </span>
-
-                    <div className="flex items-center gap-1.5">
-                      {t.assignedAgentId && (
-                        <button
-                          onClick={() => {
-                            switchActiveAgentProfile(leader.id);
-                            if (t.assignedAgentId) {
-                              setAnsweringAsAgentId(t.assignedAgentId);
-                            }
-                            setSelectedAgentTicketId(t.id);
-                            setViewMode('agent');
-                          }}
-                          className="px-2.5 py-1 text-xs font-bold text-amber-950 bg-amber-200 hover:bg-amber-300 border border-amber-400/80 rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
-                          title={`Contestar a este cliente con el avatar y nombre de ${t.assignedAgentName || 'el agente asignado'}`}
-                        >
-                          <Sparkles className="w-3 h-3 text-amber-700" />
-                          <span>Contestar como {t.assignedAgentName ? t.assignedAgentName.split(' ')[0] : 'Agente'}</span>
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => {
-                          switchActiveAgentProfile(leader.id);
-                          setSelectedAgentTicketId(t.id);
-                          setViewMode('agent');
-                        }}
-                        className="px-3 py-1 text-xs font-semibold text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 rounded-lg transition-colors cursor-pointer"
-                      >
-                        Intervenir
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                  <span>{f.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      areaFilter === f.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {f.count}
+                  </span>
+                </button>
               ))}
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {filteredTickets.map((t) => {
+                const isTransferringThis = transferringTicketId === t.id;
+
+                return (
+                  <div
+                    key={t.id}
+                    className="py-3 px-2 hover:bg-slate-50/80 rounded-lg transition-colors flex flex-col gap-2.5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded">
+                            {t.id}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-800 truncate">{t.subject}</span>
+
+                          {/* Colored Department Badge */}
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              t.department === 'soporte'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : t.department === 'procesos'
+                                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                : 'bg-rose-50 text-rose-800 border-rose-200'
+                            }`}
+                          >
+                            {t.departmentName}
+                          </span>
+
+                          {t.referredByLeaderId === leader.id && (
+                            <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded-full flex items-center gap-0.5">
+                              <Crown className="w-2.5 h-2.5" />
+                              VIP Referral
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1">
+                          <span>
+                            Cliente: <strong className="text-slate-700">{t.customer.name}</strong>
+                          </span>
+                          <span>·</span>
+                          <span>
+                            Asignado a: <strong className="text-indigo-600">{t.assignedAgentName || 'Sin asignar'}</strong>
+                          </span>
+                          <span>·</span>
+                          <span className="font-mono text-[11px]">
+                            {new Date(t.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        {/* Area Reclassifier Dropdown */}
+                        <div className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200 text-xs">
+                          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Área:</span>
+                          <select
+                            value={t.department}
+                            onChange={(e) => changeTicketDepartment(t.id, e.target.value as any)}
+                            className="text-xs font-bold text-slate-800 bg-transparent cursor-pointer focus:outline-none"
+                            title="Reclasificar ticket a otra área"
+                          >
+                            <option value="soporte">Soporte</option>
+                            <option value="procesos">Procesos</option>
+                            <option value="estafa">Estafa</option>
+                          </select>
+                        </div>
+
+                        <span
+                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                            t.status === 'pending'
+                              ? 'bg-amber-100 text-amber-800'
+                              : t.status === 'in_progress'
+                              ? 'bg-indigo-100 text-indigo-800'
+                              : 'bg-emerald-100 text-emerald-800'
+                          }`}
+                        >
+                          {t.status === 'pending' ? 'Pendiente' : t.status === 'in_progress' ? 'En Atención' : 'Resuelto'}
+                        </span>
+
+                        <div className="flex items-center gap-1.5">
+                          {t.assignedAgentId && (
+                            <button
+                              onClick={() => {
+                                switchActiveAgentProfile(leader.id);
+                                if (t.assignedAgentId) {
+                                  setAnsweringAsAgentId(t.assignedAgentId);
+                                }
+                                setSelectedAgentTicketId(t.id);
+                                setViewMode('agent');
+                              }}
+                              className="px-2.5 py-1 text-xs font-bold text-amber-950 bg-amber-200 hover:bg-amber-300 border border-amber-400/80 rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                              title={`Contestar a este cliente con el avatar y nombre de ${t.assignedAgentName || 'el agente asignado'}`}
+                            >
+                              <Sparkles className="w-3 h-3 text-amber-700" />
+                              <span>Contestar como {t.assignedAgentName ? t.assignedAgentName.split(' ')[0] : 'Agente'}</span>
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => {
+                              switchActiveAgentProfile(leader.id);
+                              setSelectedAgentTicketId(t.id);
+                              setViewMode('agent');
+                            }}
+                            className="px-3 py-1 text-xs font-semibold text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 rounded-lg transition-colors cursor-pointer"
+                          >
+                            Intervenir
+                          </button>
+
+                          <button
+                            onClick={() => setTransferringTicketId(isTransferringThis ? null : t.id)}
+                            className="px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                            title="Reasignar a otro agente"
+                          >
+                            <ArrowRightLeft className="w-3 h-3 text-slate-500" />
+                            <span>Transferir</span>
+                          </button>
+
+                          {t.status !== 'resolved' && (
+                            <button
+                              onClick={() => resolveTicket(t.id)}
+                              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                              title="Marcar este caso como resuelto"
+                            >
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>Resolver</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Inline Quick Transfer Tray */}
+                    {isTransferringThis && (
+                      <div className="p-3 bg-slate-100 rounded-xl border border-slate-300 space-y-2 animate-in fade-in">
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                          <span className="flex items-center gap-1.5">
+                            <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600" />
+                            Selecciona el especialista al cual transferir el ticket {t.id}:
+                          </span>
+                          <button
+                            onClick={() => setTransferringTicketId(null)}
+                            className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                          >
+                            ✕ Cancelar
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {agents
+                            .filter((a) => a.roleType === 'agent')
+                            .map((ag) => (
+                              <button
+                                key={ag.id}
+                                onClick={() => handleQuickTransfer(t.id, ag.id)}
+                                className="p-2 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-left transition-colors cursor-pointer flex items-center gap-2 group"
+                              >
+                                <img src={ag.avatar} alt={ag.name} className="w-6 h-6 rounded-md object-cover" />
+                                <div className="min-w-0 leading-tight">
+                                  <span className="text-xs font-bold text-slate-900 group-hover:text-indigo-900 block truncate">
+                                    {ag.name}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 block truncate">
+                                    {ag.departmentName}
+                                  </span>
+                                </div>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
               {filteredTickets.length === 0 && (
                 <div className="p-8 text-center text-xs text-slate-400">
-                  No se encontraron tickets con los criterios de búsqueda en tu área.
+                  No se encontraron tickets en esta categoría o con los criterios de búsqueda.
                 </div>
               )}
             </div>
