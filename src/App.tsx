@@ -48,7 +48,7 @@ function AppContent() {
   const [targetAuthLeaderId, setTargetAuthLeaderId] = useState<string | null>(null);
 
   // Check URL query parameters and pathname on load to support direct links:
-  // e.g. /chat-soporte?c=01 or /chat-soporte or /?portal=agente or /?portal=leader
+  // e.g. /leader or /team-leader or /agente or /chat-soporte or /?portal=leader
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname.toLowerCase();
@@ -68,21 +68,77 @@ function AppContent() {
         }
       }
 
-      // If user navigated to /chat-soporte or /chat, force client portal view
-      if (pathname.includes('/chat-soporte') || pathname.includes('/chat')) {
-        setViewMode('client');
+      // 1. Direct path, hash, or param for Team Leader panel
+      const hash = window.location.hash.toLowerCase();
+      if (
+        pathname.includes('/leader') ||
+        pathname.includes('/team-leader') ||
+        pathname.includes('/supervision') ||
+        pathname.includes('/admin') ||
+        hash.includes('leader') ||
+        hash.includes('team-leader') ||
+        hash.includes('admin') ||
+        hash.includes('supervision') ||
+        portalParam === 'leader' ||
+        portalParam === 'team_leader' ||
+        portalParam === 'supervision'
+      ) {
+        const leaderSpecific = params.get('leader') || params.get('tl') || params.get('id');
+        if (leaderSpecific) {
+          setActiveLeaderId(leaderSpecific);
+        }
+        setViewMode('leader');
         return;
       }
 
-      if (portalParam === 'agente' || portalParam === 'agent') {
+      // 2. Direct path, hash, or param for Agent console
+      if (
+        pathname.includes('/agente') ||
+        pathname.includes('/agent') ||
+        pathname.includes('/consola') ||
+        hash.includes('agente') ||
+        hash.includes('agent') ||
+        portalParam === 'agente' ||
+        portalParam === 'agent'
+      ) {
         setViewMode('agent');
-      } else if (portalParam === 'leader' || portalParam === 'team_leader') {
-        setViewMode('leader');
-      } else {
-        setViewMode('client');
+        return;
       }
+
+      // 3. Default or /chat-soporte -> Customer portal
+      setViewMode('client');
     }
   }, [agents, setViewMode, setActiveLeaderId]);
+
+  // Listen to hash changes (e.g. user types #leader or #agente without full reload)
+  useEffect(() => {
+    const handleHash = () => {
+      const h = window.location.hash.toLowerCase();
+      if (h.includes('leader') || h.includes('team-leader') || h.includes('admin') || h.includes('supervision')) {
+        setViewMode('leader');
+      } else if (h.includes('agente') || h.includes('agent')) {
+        setViewMode('agent');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, [setViewMode]);
+
+  // Global discrete shortcut (Alt + L) for staff/leaders
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.altKey && (e.key === 'l' || e.key === 'L')) ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'l' || e.key === 'L'))
+      ) {
+        e.preventDefault();
+        setTargetAuthLeaderId('leader-jeremy');
+        setLeaderAuthModalOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const toggleSound = () => {
     const next = !isMuted;
@@ -98,14 +154,21 @@ function AppContent() {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900 font-sans">
         {/* Customer Header */}
-        <header className="flex items-center justify-between gap-8 px-6 py-3.5 bg-white border-b border-slate-200/90 shadow-2xs sticky top-0 z-30">
+        <header className="flex items-center justify-between gap-4 px-4 sm:px-6 py-3.5 bg-white border-b border-slate-200/90 shadow-2xs sticky top-0 z-30">
           {/* Wordmark */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs">
+            <button
+              onClick={() => {
+                setTargetAuthLeaderId('leader-jeremy');
+                setLeaderAuthModalOpen(true);
+              }}
+              className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs cursor-pointer active:scale-95 transition-transform"
+              title="Acceso de supervisión (Team Leaders)"
+            >
               <MessageSquare className="w-5 h-5" />
-            </div>
+            </button>
             <div>
-              <span className="text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap block leading-tight">
+              <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap block leading-tight">
                 Centro de Atención al Cliente
               </span>
               <span className="text-[11px] text-slate-500 font-medium block">
@@ -130,7 +193,19 @@ function AppContent() {
           </nav>
 
           {/* Customer Actions */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Lock button for quick supervisor login (ideal on mobile) */}
+            <button
+              onClick={() => {
+                setTargetAuthLeaderId('leader-jeremy');
+                setLeaderAuthModalOpen(true);
+              }}
+              title="Acceso de Supervisión (Team Leaders)"
+              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+            >
+              <Lock className="w-4 h-4" />
+            </button>
+
             <button
               onClick={toggleSound}
               title={isMuted ? 'Activar sonido de mensajes' : 'Silenciar notificaciones'}
@@ -141,10 +216,11 @@ function AppContent() {
 
             <button
               onClick={() => setActiveCustomerTicketId(null)}
-              className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+              className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
             >
               <PlusCircle className="w-3.5 h-3.5" />
-              Nueva Consulta
+              <span className="hidden xs:inline">Nueva Consulta</span>
+              <span className="xs:hidden">Nuevo</span>
             </button>
           </div>
         </header>
@@ -154,15 +230,25 @@ function AppContent() {
           <CustomerChatView />
         </main>
 
-        {/* Customer Footer - Zero agent or leader options */}
+        {/* Customer Footer */}
         <footer className="px-6 py-3 bg-white border-t border-slate-200 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
             <span>Atención segura con cifrado punto a punto · Soporte en vivo 24/7</span>
           </div>
 
-          <div className="text-slate-400 text-[11px]">
-            Centro Oficial de Atención al Cliente · Confidencialidad y Privacidad Garantizada
+          <div className="text-slate-400 text-[11px] flex items-center gap-2.5">
+            <span>Centro Oficial de Atención al Cliente · Confidencialidad y Privacidad Garantizada</span>
+            <button
+              onClick={() => {
+                setTargetAuthLeaderId('leader-jeremy');
+                setLeaderAuthModalOpen(true);
+              }}
+              title="Acceso de Supervisión (Team Leaders) · También puedes usar Alt + L"
+              className="text-slate-300 hover:text-slate-600 transition-colors p-0.5 rounded cursor-pointer"
+            >
+              <Lock className="w-3 h-3" />
+            </button>
           </div>
         </footer>
 
@@ -172,6 +258,17 @@ function AppContent() {
           onClose={() => setCustomerFaqOpen(false)}
           onSelectTopic={(_topic) => {
             setActiveCustomerTicketId(null);
+          }}
+        />
+
+        {/* Team Leader Login Modal for discrete access from client view */}
+        <TeamLeaderLoginModal
+          isOpen={leaderAuthModalOpen}
+          onClose={() => setLeaderAuthModalOpen(false)}
+          targetLeaderId={targetAuthLeaderId}
+          onSuccess={(leader) => {
+            setActiveLeaderId(leader.id);
+            setViewMode('leader');
           }}
         />
       </div>
