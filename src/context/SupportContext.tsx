@@ -46,16 +46,36 @@ interface SupportContextType {
   setAnsweringAsAgentId: (agentId: string | null) => void;
   sendTyping: (ticketId: string, isTyping: boolean, senderType: 'customer' | 'agent') => void;
   resetDemoData: () => void;
+  clearAllConversations: () => void;
 }
 
 const SupportContext = createContext<SupportContextType | null>(null);
 
 export function SupportProvider({ children }: { children: React.ReactNode }) {
   const [agents, setAgents] = useState<AgentProfile[]>(INITIAL_AGENTS);
-  const [tickets, setTickets] = useState<Ticket[]>(INITIAL_TICKETS);
-  const [messages, setMessages] = useState<Record<string, Message[]>>(INITIAL_MESSAGES);
-  const [activeAgentId, setActiveAgentId] = useState<string>('agent-carlos');
-  const [selectedAgentTicketId, setSelectedAgentTicketId] = useState<string | null>('TICK-4091');
+  const [tickets, setTickets] = useState<Ticket[]>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        // Clean legacy mock test keys
+        localStorage.removeItem('soporte_tickets_v1');
+        localStorage.removeItem('soporte_messages_v1');
+        const stored = localStorage.getItem('soporte_tickets_v2');
+        if (stored) return JSON.parse(stored);
+      }
+    } catch {}
+    return [];
+  });
+  const [messages, setMessages] = useState<Record<string, Message[]>>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('soporte_messages_v2');
+        if (stored) return JSON.parse(stored);
+      }
+    } catch {}
+    return {};
+  });
+  const [activeAgentId, setActiveAgentId] = useState<string>('leader-jeremy');
+  const [selectedAgentTicketId, setSelectedAgentTicketId] = useState<string | null>(null);
   const [activeCustomerTicketId, setActiveCustomerTicketId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('client');
   const [activeLeaderId, setActiveLeaderId] = useState<string | null>(null);
@@ -89,7 +109,7 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Initialize WebSocket and BroadcastChannel
+  // Initialize WebSocket, BroadcastChannel, and cross-tab storage sync
   useEffect(() => {
     // Setup BroadcastChannel
     if (typeof BroadcastChannel !== 'undefined') {
@@ -101,6 +121,23 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
         handleIncomingSyncEvent(ev, payload);
       };
     }
+
+    // Cross-tab / Cross-window storage event sync
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'soporte_tickets_v2' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setTickets(parsed);
+        } catch {}
+      }
+      if (e.key === 'soporte_messages_v2' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setMessages(parsed);
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
 
     // Connect WebSocket
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -148,8 +185,14 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
       .then((state: ServerSyncState) => {
         if (state && state.agents && state.tickets) {
           setAgents(state.agents);
-          setTickets(state.tickets);
-          setMessages(state.messages);
+          if (state.tickets.length > 0) {
+            setTickets(state.tickets);
+            setMessages(state.messages || {});
+            try {
+              localStorage.setItem('soporte_tickets_v2', JSON.stringify(state.tickets));
+              localStorage.setItem('soporte_messages_v2', JSON.stringify(state.messages || {}));
+            } catch {}
+          }
         }
       })
       .catch(() => {
@@ -158,6 +201,7 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       clearTimeout(reconnectTimer);
+      window.removeEventListener('storage', handleStorage);
       if (ws) ws.close();
       if (channelRef.current) channelRef.current.close();
     };
@@ -171,6 +215,10 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
         setAgents(state.agents);
         setTickets(state.tickets);
         setMessages(state.messages);
+        try {
+          localStorage.setItem('soporte_tickets_v2', JSON.stringify(state.tickets));
+          localStorage.setItem('soporte_messages_v2', JSON.stringify(state.messages));
+        } catch {}
         break;
       }
 
@@ -181,15 +229,19 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
           if (ticketMsgs.some((m) => m.id === msg.id)) {
             return prev;
           }
-          return {
+          const next = {
             ...prev,
             [msg.ticketId]: [...ticketMsgs, msg],
           };
+          try {
+            localStorage.setItem('soporte_messages_v2', JSON.stringify(next));
+          } catch {}
+          return next;
         });
 
         // Update ticket snippet
-        setTickets((prev) =>
-          prev.map((t) => {
+        setTickets((prev) => {
+          const next = prev.map((t) => {
             if (t.id === msg.ticketId) {
               return {
                 ...t,
@@ -198,8 +250,12 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
               };
             }
             return t;
-          })
-        );
+          });
+          try {
+            localStorage.setItem('soporte_tickets_v2', JSON.stringify(next));
+          } catch {}
+          return next;
+        });
 
         // Sound chime for incoming messages
         if (msg.senderType === 'agent' || msg.senderType === 'customer') {
@@ -212,21 +268,35 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
         const ticket = payload as Ticket;
         setTickets((prev) => {
           if (prev.some((t) => t.id === ticket.id)) return prev;
-          return [ticket, ...prev];
+          const next = [ticket, ...prev];
+          try {
+            localStorage.setItem('soporte_tickets_v2', JSON.stringify(next));
+          } catch {}
+          return next;
         });
-        setMessages((prev) => ({
-          ...prev,
-          [ticket.id]: prev[ticket.id] || [],
-        }));
+        setMessages((prev) => {
+          const next = {
+            ...prev,
+            [ticket.id]: prev[ticket.id] || [],
+          };
+          try {
+            localStorage.setItem('soporte_messages_v2', JSON.stringify(next));
+          } catch {}
+          return next;
+        });
         sound.playIncomingMessage();
         break;
       }
 
       case 'ticket_updated': {
         const updatedTicket = payload as Ticket;
-        setTickets((prev) =>
-          prev.map((t) => (t.id === updatedTicket.id ? { ...t, ...updatedTicket } : t))
-        );
+        setTickets((prev) => {
+          const next = prev.map((t) => (t.id === updatedTicket.id ? { ...t, ...updatedTicket } : t));
+          try {
+            localStorage.setItem('soporte_tickets_v2', JSON.stringify(next));
+          } catch {}
+          return next;
+        });
         break;
       }
 
@@ -567,14 +637,22 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
       };
 
       // Optimistic update
-      setMessages((prev) => ({
-        ...prev,
-        [ticketId]: [...(prev[ticketId] || []), newMsg],
-      }));
+      setMessages((prev) => {
+        const next = {
+          ...prev,
+          [ticketId]: [...(prev[ticketId] || []), newMsg],
+        };
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('soporte_messages_v2', JSON.stringify(next));
+          }
+        } catch {}
+        return next;
+      });
 
       // Update ticket snippet
-      setTickets((prev) =>
-        prev.map((t) => {
+      setTickets((prev) => {
+        const next = prev.map((t) => {
           if (t.id === ticketId) {
             return {
               ...t,
@@ -588,8 +666,14 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
             };
           }
           return t;
-        })
-      );
+        });
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('soporte_tickets_v2', JSON.stringify(next));
+          }
+        } catch {}
+        return next;
+      });
 
       sound.playSentMessage();
 
@@ -695,11 +779,29 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
         timestamp: now + 50,
       };
 
-      setTickets((prev) => [newTicket, ...prev]);
-      setMessages((prev) => ({
-        ...prev,
-        [ticketId]: [initialCustomerMsg, systemWelcomeMsg],
-      }));
+      setTickets((prev) => {
+        const next = [newTicket, ...prev];
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('soporte_tickets_v2', JSON.stringify(next));
+          }
+        } catch {}
+        return next;
+      });
+
+      setMessages((prev) => {
+        const next = {
+          ...prev,
+          [ticketId]: [initialCustomerMsg, systemWelcomeMsg],
+        };
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('soporte_messages_v2', JSON.stringify(next));
+          }
+        } catch {}
+        return next;
+      });
+
       setActiveCustomerTicketId(ticketId);
       setSelectedAgentTicketId(ticketId);
 
@@ -710,7 +812,22 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
       fetch('/api/tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newTicket),
+        body: JSON.stringify({
+          ...newTicket,
+          initialMessages: [initialCustomerMsg, systemWelcomeMsg],
+        }),
+      }).catch(() => {});
+
+      fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(initialCustomerMsg),
+      }).catch(() => {});
+
+      fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(systemWelcomeMsg),
       }).catch(() => {});
 
       return newTicket;
@@ -966,19 +1083,40 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
     try {
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('soporte_unlocked_leaders');
+        localStorage.removeItem('soporte_tickets_v2');
+        localStorage.removeItem('soporte_messages_v2');
       }
     } catch {}
     setUnlockedLeaderIds([]);
     setActiveLeaderId(null);
     setAnsweringAsAgentId(null);
     setAgents(JSON.parse(JSON.stringify(INITIAL_AGENTS)));
-    setTickets(JSON.parse(JSON.stringify(INITIAL_TICKETS)));
-    setMessages(JSON.parse(JSON.stringify(INITIAL_MESSAGES)));
-    setActiveAgentId('agent-carlos');
-    setSelectedAgentTicketId('TICK-4091');
+    setTickets([]);
+    setMessages({});
+    setActiveAgentId('leader-jeremy');
+    setSelectedAgentTicketId(null);
     setActiveCustomerTicketId(null);
     sendWsOrBroadcast('reset_demo', {});
+    fetch('/api/clear', { method: 'POST' }).catch(() => {});
   }, [sendWsOrBroadcast]);
+
+  // Clear all conversations / tickets / test messages completely
+  const clearAllConversations = useCallback(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('soporte_tickets_v2');
+        localStorage.removeItem('soporte_messages_v2');
+        localStorage.removeItem('soporte_tickets_v1');
+        localStorage.removeItem('soporte_messages_v1');
+      }
+    } catch {}
+    setTickets([]);
+    setMessages({});
+    setSelectedAgentTicketId(null);
+    setActiveCustomerTicketId(null);
+    sendWsOrBroadcast('sync_state', { agents, tickets: [], messages: {} });
+    fetch('/api/clear', { method: 'POST' }).catch(() => {});
+  }, [agents, sendWsOrBroadcast]);
 
   return (
     <SupportContext.Provider
@@ -1017,6 +1155,7 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
         changeTicketDepartment,
         sendTyping,
         resetDemoData,
+        clearAllConversations,
       }}
     >
       {children}

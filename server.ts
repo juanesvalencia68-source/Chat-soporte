@@ -11,8 +11,8 @@ const __dirname = path.dirname(__filename);
 
 // Authoritative in-memory state
 let agents: AgentProfile[] = JSON.parse(JSON.stringify(INITIAL_AGENTS));
-let tickets: Ticket[] = JSON.parse(JSON.stringify(INITIAL_TICKETS));
-let messages: Record<string, Message[]> = JSON.parse(JSON.stringify(INITIAL_MESSAGES));
+let tickets: Ticket[] = [];
+let messages: Record<string, Message[]> = {};
 
 // Typing indicators: ticketId -> { [clientId: string]: boolean }
 const typingState: Record<string, Record<string, { isTyping: boolean; name: string; senderType: string }>> = {};
@@ -44,8 +44,16 @@ async function startServer() {
     res.json(state);
   });
 
+  app.post('/api/clear', (_req: Request, res: Response) => {
+    tickets = [];
+    messages = {};
+    broadcast('sync_state', { agents, tickets, messages });
+    res.json({ success: true, message: 'Todas las conversaciones de prueba fueron eliminadas.' });
+  });
+
   app.post('/api/tickets', (req: Request, res: Response) => {
-    const newTicket: Ticket = req.body;
+    const { initialMessages, ...ticketData } = req.body;
+    const newTicket: Ticket = ticketData;
     if (!newTicket.id) {
       newTicket.id = `TICK-${Math.floor(1000 + Math.random() * 9000)}`;
     }
@@ -58,7 +66,17 @@ async function startServer() {
       messages[newTicket.id] = [];
     }
 
+    if (Array.isArray(initialMessages)) {
+      messages[newTicket.id].push(...initialMessages);
+    }
+
     broadcast('ticket_created', newTicket);
+    if (Array.isArray(initialMessages)) {
+      initialMessages.forEach((m: Message) => {
+        broadcast('new_message', m);
+      });
+    }
+
     res.status(201).json(newTicket);
   });
 

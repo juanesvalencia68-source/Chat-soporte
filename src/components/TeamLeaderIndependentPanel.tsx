@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSupport } from '../context/SupportContext';
 import { AgentProfile, Ticket, Attachment, DepartmentId } from '../types/support';
 import { buildCustomerChatLink, getLeaderChannelCode } from '../utils/channelLinks';
@@ -28,6 +28,10 @@ import {
   ExternalLink,
   ChevronDown,
   Filter,
+  Send,
+  Trash2,
+  X,
+  MessageCircle,
 } from 'lucide-react';
 
 interface Props {
@@ -54,6 +58,7 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
     changeTicketDepartment,
     transferTicket,
     resolveTicket,
+    clearAllConversations,
   } = useSupport();
 
   const leader = agents.find((a) => a.id === leaderId && a.roleType === 'team_leader');
@@ -83,6 +88,13 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
   const [ticketSearch, setTicketSearch] = useState('');
   const [areaFilter, setAreaFilter] = useState<'all' | 'soporte' | 'procesos' | 'estafa' | 'my_team'>('all');
   const [transferringTicketId, setTransferringTicketId] = useState<string | null>(null);
+
+  // Direct live chat responder modal inside Team Leader Panel
+  const [chatModalTicketId, setChatModalTicketId] = useState<string | null>(null);
+  const [chatReplyText, setChatReplyText] = useState('');
+  const [replySenderMode, setReplySenderMode] = useState<'leader' | 'agent'>('leader');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
   // Link copy state
   const [copiedLink, setCopiedLink] = useState(false);
@@ -856,15 +868,34 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
                 </p>
               </div>
 
-              <div className="relative w-64">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar por cliente, ID o asunto..."
-                  value={ticketSearch}
-                  onChange={(e) => setTicketSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative w-64">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por cliente, ID o asunto..."
+                    value={ticketSearch}
+                    onChange={(e) => setTicketSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {tickets.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('¿Deseas eliminar todas las conversaciones y tickets de prueba de la plataforma?')) {
+                        clearAllConversations();
+                        setSuccessMessage('Todas las conversaciones de prueba han sido eliminadas.');
+                        setTimeout(() => setSuccessMessage(null), 3000);
+                      }
+                    }}
+                    className="px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-lg transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                    title="Eliminar todas las conversaciones de prueba de la plataforma"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Borrar Chats de Prueba</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -990,21 +1021,33 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
                         </span>
 
                         <div className="flex items-center gap-1.5">
+                          {/* Direct Live Responder inside Team Leader Panel */}
+                          <button
+                            onClick={() => {
+                              setChatModalTicketId(t.id);
+                              setReplySenderMode('leader');
+                            }}
+                            className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-colors cursor-pointer flex items-center gap-1.5"
+                            title="Abrir chat y responder directamente a este cliente desde este panel"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>Responder</span>
+                          </button>
+
                           {t.assignedAgentId && (
                             <button
                               onClick={() => {
-                                switchActiveAgentProfile(leader.id);
+                                setChatModalTicketId(t.id);
+                                setReplySenderMode('agent');
                                 if (t.assignedAgentId) {
                                   setAnsweringAsAgentId(t.assignedAgentId);
                                 }
-                                setSelectedAgentTicketId(t.id);
-                                setViewMode('agent');
                               }}
                               className="px-2.5 py-1 text-xs font-bold text-amber-950 bg-amber-200 hover:bg-amber-300 border border-amber-400/80 rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
                               title={`Contestar a este cliente con el avatar y nombre de ${t.assignedAgentName || 'el agente asignado'}`}
                             >
                               <Sparkles className="w-3 h-3 text-amber-700" />
-                              <span>Contestar como {t.assignedAgentName ? t.assignedAgentName.split(' ')[0] : 'Agente'}</span>
+                              <span>Como {t.assignedAgentName ? t.assignedAgentName.split(' ')[0] : 'Agente'}</span>
                             </button>
                           )}
 
@@ -1014,9 +1057,10 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
                               setSelectedAgentTicketId(t.id);
                               setViewMode('agent');
                             }}
-                            className="px-3 py-1 text-xs font-semibold text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 rounded-lg transition-colors cursor-pointer"
+                            className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                            title="Abrir consola técnica"
                           >
-                            Intervenir
+                            Consola
                           </button>
 
                           <button
@@ -1283,6 +1327,242 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
         onClose={() => setShowShareModal(false)}
         teamLeader={leader}
       />
+
+      {/* Direct Live Responder Modal for Team Leader */}
+      {chatModalTicketId && (() => {
+        const activeModalTicket = tickets.find((t) => t.id === chatModalTicketId);
+        if (!activeModalTicket) return null;
+        const ticketMsgs = messages[activeModalTicket.id] || [];
+
+        const handleSendModalReply = async (e?: React.FormEvent) => {
+          if (e) e.preventDefault();
+          if (!chatReplyText.trim()) return;
+
+          const textToSend = chatReplyText.trim();
+          setChatReplyText('');
+
+          // Set impersonation identity if selected
+          if (replySenderMode === 'agent' && activeModalTicket.assignedAgentId) {
+            setAnsweringAsAgentId(activeModalTicket.assignedAgentId);
+          } else {
+            setAnsweringAsAgentId(null);
+          }
+
+          await sendMessage(activeModalTicket.id, textToSend, 'agent');
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in">
+            <div className="bg-white w-full max-w-4xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+              {/* Header */}
+              <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-amber-400 bg-amber-400/20 px-2 py-0.5 rounded border border-amber-400/30">
+                      {activeModalTicket.id}
+                    </span>
+                    <h3 className="text-sm font-bold text-white truncate max-w-md">
+                      {activeModalTicket.subject}
+                    </h3>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-300">
+                    <span>Cliente: <strong className="text-white">{activeModalTicket.customer.name}</strong></span>
+                    <span>·</span>
+                    <span className="font-mono text-[11px] text-slate-400">{activeModalTicket.customer.email}</span>
+                    <span>·</span>
+                    <div className="flex items-center gap-1 bg-slate-800 px-2 py-0.5 rounded text-[11px]">
+                      <span className="text-slate-400">Área:</span>
+                      <select
+                        value={activeModalTicket.department}
+                        onChange={(e) => changeTicketDepartment(activeModalTicket.id, e.target.value as any)}
+                        className="bg-transparent text-amber-300 font-bold focus:outline-none cursor-pointer"
+                      >
+                        <option value="soporte" className="bg-slate-900 text-white">Soporte Técnico</option>
+                        <option value="procesos" className="bg-slate-900 text-white">Área de Procesos</option>
+                        <option value="estafa" className="bg-slate-900 text-white">Prevención / Estafa</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {activeModalTicket.status !== 'resolved' && (
+                    <button
+                      onClick={() => resolveTicket(activeModalTicket.id)}
+                      className="px-3 py-1.5 text-xs font-semibold text-emerald-300 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700/80 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Resolver Caso</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      switchActiveAgentProfile(leader.id);
+                      setSelectedAgentTicketId(activeModalTicket.id);
+                      setViewMode('agent');
+                    }}
+                    className="px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                    title="Abrir en Consola Operativa completa"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Consola</span>
+                  </button>
+
+                  <button
+                    onClick={() => setChatModalTicketId(null)}
+                    className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Message List */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/70">
+                {ticketMsgs.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400">
+                    <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-xs">No hay mensajes registrados aún en este caso.</p>
+                  </div>
+                ) : (
+                  ticketMsgs.map((m) => {
+                    const isAgent = m.senderType === 'agent';
+                    const isSystem = m.senderType === 'system';
+                    const isInternal = m.senderType === 'internal_note';
+
+                    if (isSystem) {
+                      return (
+                        <div key={m.id} className="flex justify-center my-1.5">
+                          <span className="text-[11px] bg-slate-200/80 text-slate-600 px-3 py-1 rounded-full border border-slate-300">
+                            {m.content}
+                          </span>
+                        </div>
+                      );
+                    }
+
+                    if (isInternal) {
+                      return (
+                        <div key={m.id} className="p-3 bg-amber-50 border border-amber-200 rounded-xl my-2 text-xs text-amber-900">
+                          <div className="font-bold flex items-center gap-1 mb-0.5">
+                            <Lock className="w-3 h-3" />
+                            <span>{m.senderName}</span>
+                          </div>
+                          <p>{m.content}</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={m.id}
+                        className={`flex flex-col ${isAgent ? 'items-end' : 'items-start'}`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1 px-1 text-[11px] text-slate-500 font-medium">
+                          <span>{m.senderName}</span>
+                          {m.impersonatedByLeaderName && (
+                            <span className="text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-1 rounded flex items-center gap-0.5">
+                              <Crown className="w-2.5 h-2.5 text-amber-600" />
+                              Resp. por {m.impersonatedByLeaderName.split(' ')[0]}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+
+                        <div
+                          className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm max-w-[80%] leading-relaxed shadow-2xs ${
+                            isAgent
+                              ? 'bg-slate-900 text-white rounded-br-xs'
+                              : 'bg-white text-slate-900 border border-slate-200 rounded-bl-xs'
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap">{m.content}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                <div ref={chatMessagesEndRef} />
+              </div>
+
+              {/* Reply Box Footer */}
+              <div className="p-3 bg-white border-t border-slate-200 space-y-2.5">
+                {/* Sender Identity Toggle & Canned Quick Responses */}
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-semibold text-slate-500 px-1.5">Responder como:</span>
+                    <button
+                      type="button"
+                      onClick={() => setReplySenderMode('leader')}
+                      className={`px-2 py-0.5 rounded-md font-bold transition-all cursor-pointer ${
+                        replySenderMode === 'leader'
+                          ? 'bg-amber-400 text-amber-950 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      👑 {leader.name.split(' ')[0]} (Team Leader)
+                    </button>
+                    {activeModalTicket.assignedAgentName && (
+                      <button
+                        type="button"
+                        onClick={() => setReplySenderMode('agent')}
+                        className={`px-2 py-0.5 rounded-md font-bold transition-all cursor-pointer ${
+                          replySenderMode === 'agent'
+                            ? 'bg-indigo-600 text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        🎭 {activeModalTicket.assignedAgentName.split(' ')[0]} (Agente)
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Canned Quick Replies */}
+                  {leader.cannedResponses && leader.cannedResponses.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Rápida:</span>
+                      {leader.cannedResponses.map((cr) => (
+                        <button
+                          key={cr.id}
+                          type="button"
+                          onClick={() => setChatReplyText(cr.content)}
+                          className="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 rounded border border-slate-200 transition-colors cursor-pointer truncate max-w-[150px]"
+                          title={cr.content}
+                        >
+                          {cr.title}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Input form */}
+                <form onSubmit={handleSendModalReply} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder={`Escribe un mensaje como ${
+                      replySenderMode === 'leader' ? leader.name : activeModalTicket.assignedAgentName || 'Agente'
+                    }...`}
+                    value={chatReplyText}
+                    onChange={(e) => setChatReplyText(e.target.value)}
+                    className="flex-1 px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Enviar</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
