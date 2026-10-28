@@ -157,16 +157,9 @@ function AppContent() {
         <header className="flex items-center justify-between gap-4 px-4 sm:px-6 py-3.5 bg-white border-b border-slate-200/90 shadow-2xs sticky top-0 z-30">
           {/* Wordmark */}
           <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => {
-                setTargetAuthLeaderId('leader-jeremy');
-                setLeaderAuthModalOpen(true);
-              }}
-              className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs cursor-pointer active:scale-95 transition-transform"
-              title="Acceso de supervisión (Team Leaders)"
-            >
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs">
               <MessageSquare className="w-5 h-5" />
-            </button>
+            </div>
             <div>
               <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap block leading-tight">
                 Centro de Atención al Cliente
@@ -194,18 +187,6 @@ function AppContent() {
 
           {/* Customer Actions */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Lock button for quick supervisor login (ideal on mobile) */}
-            <button
-              onClick={() => {
-                setTargetAuthLeaderId('leader-jeremy');
-                setLeaderAuthModalOpen(true);
-              }}
-              title="Acceso de Supervisión (Team Leaders)"
-              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-            >
-              <Lock className="w-4 h-4" />
-            </button>
-
             <button
               onClick={toggleSound}
               title={isMuted ? 'Activar sonido de mensajes' : 'Silenciar notificaciones'}
