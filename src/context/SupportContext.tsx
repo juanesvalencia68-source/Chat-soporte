@@ -3,6 +3,16 @@ import { AgentProfile, Ticket, Message, ServerSyncState, DepartmentId, AgentStat
 import { INITIAL_AGENTS, INITIAL_TICKETS, INITIAL_MESSAGES } from '../data/initialData';
 import { sound } from '../services/sound';
 
+export interface SenderOverride {
+  id: string;
+  name: string;
+  role?: string;
+  avatar?: string;
+  roleType?: 'team_leader' | 'agent';
+  impersonatedByName?: string;
+  impersonatedById?: string;
+}
+
 interface SupportContextType {
   agents: AgentProfile[];
   tickets: Ticket[];
@@ -28,7 +38,13 @@ interface SupportContextType {
   removeAgentFromTeamLeader: (leaderId: string, agentId: string) => void;
   setSelectedAgentTicketId: (ticketId: string | null) => void;
   setActiveCustomerTicketId: (ticketId: string | null) => void;
-  sendMessage: (ticketId: string, content: string, senderType: 'customer' | 'agent' | 'internal_note', attachments?: Attachment[]) => Promise<void>;
+  sendMessage: (
+    ticketId: string,
+    content: string,
+    senderType: 'customer' | 'agent' | 'internal_note',
+    attachments?: Attachment[],
+    senderOverride?: SenderOverride
+  ) => Promise<void>;
   createCustomerTicket: (
     subject: string,
     department: DepartmentId,
@@ -181,7 +197,12 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
 
     // Initial fallback fetch via REST
     fetch('/api/state')
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error('Not ok');
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) throw new Error('Not JSON');
+        return res.json();
+      })
       .then((state: ServerSyncState) => {
         if (state && state.agents && state.tickets) {
           setAgents(state.agents);
@@ -585,7 +606,8 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
       ticketId: string,
       content: string,
       senderType: 'customer' | 'agent' | 'internal_note',
-      attachments?: Attachment[]
+      attachments?: Attachment[],
+      senderOverride?: SenderOverride
     ) => {
       const ticket = tickets.find((t) => t.id === ticketId);
       let senderName = 'Cliente';
@@ -595,29 +617,38 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
       let impersonatedByLeaderName: string | undefined;
       let impersonatedByLeaderId: string | undefined;
 
-      const impersonatedAgent =
-        activeAgent.roleType === 'team_leader' && answeringAsAgentId
-          ? agents.find((a) => a.id === answeringAsAgentId)
-          : null;
-      const effectiveAgent = impersonatedAgent || activeAgent;
+      if (senderOverride) {
+        senderId = senderOverride.id;
+        senderName = senderOverride.name;
+        senderAvatar = senderOverride.avatar || (senderOverride.roleType === 'team_leader' ? 'badge-leader' : 'badge-support');
+        senderRole = senderOverride.role;
+        impersonatedByLeaderName = senderOverride.impersonatedByName;
+        impersonatedByLeaderId = senderOverride.impersonatedById;
+      } else {
+        const impersonatedAgent =
+          activeAgent.roleType === 'team_leader' && answeringAsAgentId
+            ? agents.find((a) => a.id === answeringAsAgentId)
+            : null;
+        const effectiveAgent = impersonatedAgent || activeAgent;
 
-      if (senderType === 'agent') {
-        senderId = effectiveAgent.id;
-        senderName = effectiveAgent.name;
-        senderAvatar = effectiveAgent.avatar;
-        senderRole = effectiveAgent.role;
-        if (impersonatedAgent) {
-          impersonatedByLeaderName = activeAgent.name;
-          impersonatedByLeaderId = activeAgent.id;
+        if (senderType === 'agent') {
+          senderId = effectiveAgent.id;
+          senderName = effectiveAgent.name;
+          senderAvatar = effectiveAgent.avatar;
+          senderRole = effectiveAgent.role;
+          if (impersonatedAgent) {
+            impersonatedByLeaderName = activeAgent.name;
+            impersonatedByLeaderId = activeAgent.id;
+          }
+        } else if (senderType === 'internal_note') {
+          senderName = `${activeAgent.name} (Nota Interna)`;
+          senderAvatar = activeAgent.avatar;
+          senderRole = activeAgent.role;
+          senderId = activeAgent.id;
+        } else if (senderType === 'customer' && ticket) {
+          senderName = ticket.customer.name;
+          senderId = ticket?.customerId || 'cust-me';
         }
-      } else if (senderType === 'internal_note') {
-        senderName = `${activeAgent.name} (Nota Interna)`;
-        senderAvatar = activeAgent.avatar;
-        senderRole = activeAgent.role;
-        senderId = activeAgent.id;
-      } else if (senderType === 'customer' && ticket) {
-        senderName = ticket.customer.name;
-        senderId = ticket?.customerId || 'cust-me';
       }
 
       const newMsg: Message = {
@@ -659,10 +690,10 @@ export function SupportProvider({ children }: { children: React.ReactNode }) {
               updatedAt: Date.now(),
               lastMessageSnippet: senderType === 'internal_note' ? t.lastMessageSnippet : content.slice(0, 80),
               status: t.status === 'pending' && senderType === 'agent' ? 'in_progress' : t.status,
-              assignedAgentId: t.assignedAgentId || (senderType === 'agent' ? effectiveAgent.id : t.assignedAgentId),
-              assignedAgentName: t.assignedAgentName || (senderType === 'agent' ? effectiveAgent.name : t.assignedAgentName),
-              assignedAgentAvatar: t.assignedAgentAvatar || (senderType === 'agent' ? effectiveAgent.avatar : t.assignedAgentAvatar),
-              assignedAgentRole: t.assignedAgentRole || (senderType === 'agent' ? effectiveAgent.role : t.assignedAgentRole),
+              assignedAgentId: t.assignedAgentId || (senderType === 'agent' ? senderId : t.assignedAgentId),
+              assignedAgentName: t.assignedAgentName || (senderType === 'agent' ? senderName : t.assignedAgentName),
+              assignedAgentAvatar: t.assignedAgentAvatar || (senderType === 'agent' ? senderAvatar : t.assignedAgentAvatar),
+              assignedAgentRole: t.assignedAgentRole || (senderType === 'agent' ? senderRole : t.assignedAgentRole),
             };
           }
           return t;

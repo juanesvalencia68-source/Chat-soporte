@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSupport } from '../context/SupportContext';
 import { Ticket } from '../types/support';
 import { ArrowRightLeft, X, ShieldAlert, Check } from 'lucide-react';
+import { AgentAvatarBadge } from './AgentAvatarBadge';
 
 interface Props {
   isOpen: boolean;
@@ -71,11 +72,11 @@ export const TransferTicketModal: React.FC<Props> = ({ isOpen, onClose, ticket }
                         : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
-                    <img
-                      src={ag.avatar}
-                      alt={ag.name}
-                      referrerPolicy="no-referrer"
-                      className="w-9 h-9 rounded-md object-cover border border-slate-200"
+                    <AgentAvatarBadge
+                      roleType={ag.roleType}
+                      department={ag.department}
+                      name={ag.name}
+                      size="sm"
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">

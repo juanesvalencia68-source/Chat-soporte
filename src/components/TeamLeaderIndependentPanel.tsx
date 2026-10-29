@@ -4,6 +4,7 @@ import { AgentProfile, Ticket, Attachment, DepartmentId } from '../types/support
 import { buildCustomerChatLink, getLeaderChannelCode } from '../utils/channelLinks';
 import { ShareCustomerLinkModal } from './ShareCustomerLinkModal';
 import { TeamLeaderLoginModal } from './TeamLeaderLoginModal';
+import { AgentAvatarBadge } from './AgentAvatarBadge';
 import {
   Crown,
   Lock,
@@ -156,7 +157,7 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
                   className="flex items-center justify-between p-2 rounded-lg bg-slate-50 hover:bg-amber-50/50 border border-slate-200 transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center gap-2">
-                    <img src={tl.avatar} alt={tl.name} className="w-7 h-7 rounded-md object-cover" />
+                    <AgentAvatarBadge roleType="team_leader" department={tl.department} name={tl.name} size="sm" />
                     <div className="leading-tight">
                       <span className="text-xs font-bold text-slate-900 group-hover:text-amber-900">{tl.name}</span>
                       <p className="text-[10px] text-slate-500">{tl.departmentName}</p>
@@ -274,7 +275,7 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
 
     createAgentProfile({
       name: newAgentName.trim(),
-      avatar: '/src/assets/images/agent_carlos_tech_1793027650432.jpg',
+      avatar: `badge-${targetDept}`,
       role: newAgentRole.trim() || `Especialista de ${targetDeptName}`,
       roleType: 'agent',
       department: targetDept,
@@ -322,16 +323,14 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           {/* Leader identity */}
           <div className="flex items-center gap-3.5">
-            <div className="relative">
-              <img
-                src={leader.avatar}
-                alt={leader.name}
-                className="w-12 h-12 rounded-xl object-cover border-2 border-amber-400 shadow-sm"
-              />
-              <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white rounded-full p-1 shadow-sm">
-                <Crown className="w-3 h-3" />
-              </span>
-            </div>
+            <AgentAvatarBadge
+              roleType="team_leader"
+              department={leader.department}
+              name={leader.name}
+              size="lg"
+              status={leader.status}
+              showStatusDot
+            />
 
             <div>
               <div className="flex items-center gap-2">
@@ -412,16 +411,12 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
         {activeImpersonatedAgent && (
           <div className="p-4 bg-gradient-to-r from-amber-50 to-indigo-50 border border-amber-300/80 rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-3">
-              <div className="relative shrink-0">
-                <img
-                  src={activeImpersonatedAgent.avatar}
-                  alt={activeImpersonatedAgent.name}
-                  className="w-10 h-10 rounded-lg object-cover border border-amber-400 shadow-2xs"
-                />
-                <span className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 shadow-2xs">
-                  <Sparkles className="w-2.5 h-2.5" />
-                </span>
-              </div>
+              <AgentAvatarBadge
+                roleType="agent"
+                department={activeImpersonatedAgent.department}
+                name={activeImpersonatedAgent.name}
+                size="md"
+              />
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-amber-950">
@@ -619,7 +614,7 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
                             onClick={() => handleAssignExisting(ag.id)}
                             className="w-full p-2 text-left hover:bg-indigo-50 rounded-lg flex items-center gap-2.5 transition-colors cursor-pointer"
                           >
-                            <img src={ag.avatar} alt={ag.name} className="w-7 h-7 rounded-md object-cover" />
+                            <AgentAvatarBadge roleType="agent" department={ag.department} name={ag.name} size="xs" />
                             <div className="min-w-0 flex-1 leading-tight">
                               <span className="text-xs font-bold text-slate-900 block truncate">{ag.name}</span>
                               <span className="text-[10px] text-slate-500 block truncate">{ag.role}</span>
@@ -738,10 +733,13 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
                     <div>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <img
-                            src={ag.avatar}
-                            alt={ag.name}
-                            className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
+                          <AgentAvatarBadge
+                            roleType="agent"
+                            department={ag.department}
+                            name={ag.name}
+                            size="lg"
+                            status={ag.status}
+                            showStatusDot
                           />
                           <div className="min-w-0 leading-tight">
                             <h4 className="text-sm font-bold text-slate-900 truncate">{ag.name}</h4>
@@ -1111,7 +1109,7 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
                                 onClick={() => handleQuickTransfer(t.id, ag.id)}
                                 className="p-2 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-left transition-colors cursor-pointer flex items-center gap-2 group"
                               >
-                                <img src={ag.avatar} alt={ag.name} className="w-6 h-6 rounded-md object-cover" />
+                                <AgentAvatarBadge roleType="agent" department={ag.department} name={ag.name} size="xs" />
                                 <div className="min-w-0 leading-tight">
                                   <span className="text-xs font-bold text-slate-900 group-hover:text-indigo-900 block truncate">
                                     {ag.name}
@@ -1341,14 +1339,26 @@ export const TeamLeaderIndependentPanel: React.FC<Props> = ({ leaderId }) => {
           const textToSend = chatReplyText.trim();
           setChatReplyText('');
 
-          // Set impersonation identity if selected
-          if (replySenderMode === 'agent' && activeModalTicket.assignedAgentId) {
-            setAnsweringAsAgentId(activeModalTicket.assignedAgentId);
+          if (replySenderMode === 'leader') {
+            await sendMessage(activeModalTicket.id, textToSend, 'agent', undefined, {
+              id: leader.id,
+              name: leader.name,
+              role: leader.role,
+              avatar: leader.avatar,
+              roleType: 'team_leader',
+            });
           } else {
-            setAnsweringAsAgentId(null);
+            const targetAgent = agents.find((a) => a.id === activeModalTicket.assignedAgentId) || teamAgents[0] || agents[0];
+            await sendMessage(activeModalTicket.id, textToSend, 'agent', undefined, {
+              id: targetAgent.id,
+              name: targetAgent.name,
+              role: targetAgent.role,
+              avatar: targetAgent.avatar,
+              roleType: 'agent',
+              impersonatedByName: leader.name,
+              impersonatedById: leader.id,
+            });
           }
-
-          await sendMessage(activeModalTicket.id, textToSend, 'agent');
         };
 
         return (

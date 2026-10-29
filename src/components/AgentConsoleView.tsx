@@ -5,6 +5,7 @@ import { TransferTicketModal } from './TransferTicketModal';
 import { AgentProfileSwitcher } from './AgentProfileSwitcher';
 import { TeamLeaderManagementModal } from './TeamLeaderManagementModal';
 import { ShareCustomerLinkModal } from './ShareCustomerLinkModal';
+import { AgentAvatarBadge } from './AgentAvatarBadge';
 import {
   Send,
   Lock,
@@ -578,11 +579,12 @@ export const AgentConsoleView: React.FC<Props> = ({ isEmbedded = false }) => {
                       </div>
 
                       {isAgent && (
-                        <img
-                          src={msg.senderAvatar || activeAgent.avatar}
-                          alt={msg.senderName}
-                          referrerPolicy="no-referrer"
-                          className="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-200 mb-1"
+                        <AgentAvatarBadge
+                          roleType={msg.impersonatedByLeaderName ? 'team_leader' : 'agent'}
+                          department={currentTicket.department}
+                          name={msg.senderName}
+                          size="xs"
+                          className="mb-1"
                         />
                       )}
                     </div>
@@ -634,10 +636,11 @@ export const AgentConsoleView: React.FC<Props> = ({ isEmbedded = false }) => {
                           onClick={() => setImpersonateDropdownOpen(!impersonateDropdownOpen)}
                           className="flex items-center gap-2 px-2.5 py-1 bg-white border border-slate-300 hover:border-amber-400 rounded-lg shadow-2xs text-left cursor-pointer transition-colors"
                         >
-                          <img
-                            src={effectiveSender.avatar}
-                            alt={effectiveSender.name}
-                            className="w-5 h-5 rounded-md object-cover border border-slate-200"
+                          <AgentAvatarBadge
+                            roleType={effectiveSender.roleType}
+                            department={effectiveSender.department}
+                            name={effectiveSender.name}
+                            size="xs"
                           />
                           <span className="font-bold text-slate-900 truncate max-w-[140px]">
                             {effectiveSender.name}
@@ -671,7 +674,12 @@ export const AgentConsoleView: React.FC<Props> = ({ isEmbedded = false }) => {
                                 !answeringAsAgentId ? 'bg-amber-50 font-bold text-amber-950 border border-amber-200' : 'hover:bg-slate-50 text-slate-800'
                               }`}
                             >
-                              <img src={activeAgent.avatar} alt={activeAgent.name} className="w-6 h-6 rounded-md object-cover" />
+                              <AgentAvatarBadge
+                                roleType={activeAgent.roleType}
+                                department={activeAgent.department}
+                                name={activeAgent.name}
+                                size="xs"
+                              />
                               <div className="min-w-0 flex-1 leading-tight">
                                 <div className="text-xs truncate font-bold text-slate-900">{activeAgent.name} (Team Leader)</div>
                                 <div className="text-[10px] text-amber-800 font-normal">Responder con tu perfil oficial</div>
@@ -694,7 +702,12 @@ export const AgentConsoleView: React.FC<Props> = ({ isEmbedded = false }) => {
                                   answeringAsAgentId === ag.id ? 'bg-indigo-50 font-bold text-indigo-950 border border-indigo-200' : 'hover:bg-slate-50 text-slate-800'
                                 }`}
                               >
-                                <img src={ag.avatar} alt={ag.name} className="w-6 h-6 rounded-md object-cover" />
+                                <AgentAvatarBadge
+                                  roleType="agent"
+                                  department={ag.department}
+                                  name={ag.name}
+                                  size="xs"
+                                />
                                 <div className="min-w-0 flex-1 leading-tight">
                                   <div className="text-xs truncate text-slate-900 font-semibold">{ag.name}</div>
                                   <div className="text-[10px] text-slate-500 font-normal truncate">{ag.role}</div>
@@ -903,11 +916,13 @@ export const AgentConsoleView: React.FC<Props> = ({ isEmbedded = false }) => {
             </div>
 
             <div className="flex items-center gap-2.5">
-              <img
-                src={activeAgent.avatar}
-                alt={activeAgent.name}
-                referrerPolicy="no-referrer"
-                className="w-10 h-10 rounded-lg object-cover border border-slate-200"
+              <AgentAvatarBadge
+                roleType={activeAgent.roleType}
+                department={activeAgent.department}
+                name={activeAgent.name}
+                size="md"
+                status={activeAgent.status}
+                showStatusDot
               />
               <div className="min-w-0">
                 <span className="text-xs font-bold text-slate-900 block truncate">{activeAgent.name}</span>

@@ -57,17 +57,26 @@ async function startServer() {
     if (!newTicket.id) {
       newTicket.id = `TICK-${Math.floor(1000 + Math.random() * 9000)}`;
     }
-    newTicket.createdAt = Date.now();
+    newTicket.createdAt = newTicket.createdAt || Date.now();
     newTicket.updatedAt = Date.now();
 
-    // Insert at front
-    tickets.unshift(newTicket);
+    const existingIndex = tickets.findIndex((t) => t.id === newTicket.id);
+    if (existingIndex >= 0) {
+      tickets[existingIndex] = { ...tickets[existingIndex], ...newTicket };
+    } else {
+      tickets.unshift(newTicket);
+    }
+
     if (!messages[newTicket.id]) {
       messages[newTicket.id] = [];
     }
 
     if (Array.isArray(initialMessages)) {
-      messages[newTicket.id].push(...initialMessages);
+      initialMessages.forEach((m: Message) => {
+        if (!messages[newTicket.id].some((existing) => existing.id === m.id)) {
+          messages[newTicket.id].push(m);
+        }
+      });
     }
 
     broadcast('ticket_created', newTicket);
@@ -85,15 +94,17 @@ async function startServer() {
     if (!message.id) {
       message.id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     }
-    message.timestamp = Date.now();
+    message.timestamp = message.timestamp || Date.now();
 
     const ticketId = message.ticketId;
     if (!messages[ticketId]) {
       messages[ticketId] = [];
     }
-    messages[ticketId].push(message);
+    if (!messages[ticketId].some((m) => m.id === message.id)) {
+      messages[ticketId].push(message);
+    }
 
-    // Update ticket updatedAt and lastMessageSnippet
+    // Update ticket updatedAt, lastMessageSnippet, and status
     const ticket = tickets.find((t) => t.id === ticketId);
     if (ticket) {
       ticket.updatedAt = Date.now();
@@ -104,6 +115,12 @@ async function startServer() {
         ticket.unreadCountAgent += 1;
       } else if (message.senderType === 'agent') {
         ticket.unreadCountClient += 1;
+        ticket.status = ticket.status === 'pending' ? 'in_progress' : ticket.status;
+        if (!ticket.assignedAgentId && message.senderId) {
+          ticket.assignedAgentId = message.senderId;
+          ticket.assignedAgentName = message.senderName;
+          ticket.assignedAgentRole = message.senderRole;
+        }
       }
       broadcast('ticket_updated', ticket);
     }

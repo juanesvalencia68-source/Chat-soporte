@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSupport } from '../context/SupportContext';
 import { AgentProfile } from '../types/support';
 import { buildCustomerChatLink, getLeaderChannelCode } from '../utils/channelLinks';
+import { AgentAvatarBadge } from './AgentAvatarBadge';
 import {
   X,
   Share2,
@@ -148,12 +149,7 @@ export const ShareCustomerLinkModal: React.FC<Props> = ({
                       : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <img
-                    src={tl.avatar}
-                    alt={tl.name}
-                    referrerPolicy="no-referrer"
-                    className="w-5 h-5 rounded-md object-cover border border-slate-200"
-                  />
+                  <AgentAvatarBadge roleType="team_leader" department={tl.department} name={tl.name} size="xs" />
                   <span>{tl.name}</span>
                   <Crown className="w-3 h-3 text-amber-500" />
                 </button>
@@ -165,17 +161,12 @@ export const ShareCustomerLinkModal: React.FC<Props> = ({
         <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
           {/* Active Leader Profile Card */}
           <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80">
-            <div className="relative">
-              <img
-                src={currentLeader.avatar}
-                alt={currentLeader.name}
-                referrerPolicy="no-referrer"
-                className="w-13 h-13 rounded-xl object-cover border-2 border-white shadow-xs"
-              />
-              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold shadow-xs">
-                <Crown className="w-3 h-3" />
-              </span>
-            </div>
+            <AgentAvatarBadge
+              roleType="team_leader"
+              department={currentLeader.department}
+              name={currentLeader.name}
+              size="lg"
+            />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h4 className="text-sm font-bold text-slate-900">{currentLeader.name}</h4>

@@ -5,6 +5,7 @@ import { CreateProfileModal } from './CreateProfileModal';
 import { TeamLeaderManagementModal } from './TeamLeaderManagementModal';
 import { ShareCustomerLinkModal } from './ShareCustomerLinkModal';
 import { TeamLeaderLoginModal } from './TeamLeaderLoginModal';
+import { AgentAvatarBadge } from './AgentAvatarBadge';
 import {
   Check,
   ChevronDown,
@@ -121,19 +122,14 @@ export const AgentProfileSwitcher: React.FC<Props> = ({ variant = 'header', onCl
           onClick={() => setIsOpen(!isOpen)}
           className="flex items-center gap-2 hover:bg-slate-50 py-0.5 px-1.5 rounded-lg transition-colors text-left"
         >
-          <div className="relative">
-            <img
-              src={activeAgent.avatar}
-              alt={activeAgent.name}
-              referrerPolicy="no-referrer"
-              className="w-7 h-7 rounded-lg object-cover border border-slate-200"
-            />
-            {isCurrentLeader && (
-              <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white rounded-full p-0.5 shadow-2xs">
-                <Crown className="w-2.5 h-2.5" />
-              </span>
-            )}
-          </div>
+          <AgentAvatarBadge
+            roleType={activeAgent.roleType}
+            department={activeAgent.department}
+            name={activeAgent.name}
+            size="xs"
+            status={activeAgent.status}
+            showStatusDot
+          />
 
           <div className="hidden md:block leading-tight">
             <div className="flex items-center gap-1">
@@ -247,19 +243,14 @@ export const AgentProfileSwitcher: React.FC<Props> = ({ variant = 'header', onCl
                             : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'
                         }`}
                       >
-                        <div className="relative shrink-0">
-                          <img
-                            src={leader.avatar}
-                            alt={leader.name}
-                            referrerPolicy="no-referrer"
-                            className="w-9 h-9 rounded-md object-cover border border-amber-200"
-                          />
-                          <span
-                            className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                              statusColors[leader.status].dot
-                            }`}
-                          />
-                        </div>
+                        <AgentAvatarBadge
+                          roleType="team_leader"
+                          department={leader.department}
+                          name={leader.name}
+                          size="md"
+                          status={leader.status}
+                          showStatusDot
+                        />
 
                         <div className="min-w-0 flex-1 leading-tight">
                           <div className="flex items-center justify-between gap-1">
@@ -329,19 +320,14 @@ export const AgentProfileSwitcher: React.FC<Props> = ({ variant = 'header', onCl
                             : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'
                         }`}
                       >
-                        <div className="relative shrink-0">
-                          <img
-                            src={agent.avatar}
-                            alt={agent.name}
-                            referrerPolicy="no-referrer"
-                            className="w-9 h-9 rounded-md object-cover border border-slate-200"
-                          />
-                          <span
-                            className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                              statusColors[agent.status].dot
-                            }`}
-                          />
-                        </div>
+                        <AgentAvatarBadge
+                          roleType="agent"
+                          department={agent.department}
+                          name={agent.name}
+                          size="md"
+                          status={agent.status}
+                          showStatusDot
+                        />
 
                         <div className="min-w-0 flex-1 leading-tight">
                           <div className="flex items-center justify-between gap-1">

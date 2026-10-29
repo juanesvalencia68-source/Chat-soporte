@@ -3,6 +3,7 @@ import { useSupport } from '../context/SupportContext';
 import { DepartmentId, Attachment, AgentProfile } from '../types/support';
 import { DEPARTMENTS } from '../data/initialData';
 import { resolveLeaderFromQuery } from '../utils/channelLinks';
+import { AgentAvatarBadge } from './AgentAvatarBadge';
 import {
   Send,
   Paperclip,
@@ -187,17 +188,16 @@ export const CustomerChatView: React.FC<Props> = ({ isEmbedded = false }) => {
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-white">
         <div className="flex items-center gap-3 min-w-0">
           {assignedAgent ? (
-            <div className="relative shrink-0">
-              <img
-                src={assignedAgent.avatar}
-                alt={assignedAgent.name}
-                referrerPolicy="no-referrer"
-                className="w-10 h-10 rounded-full object-cover border border-slate-200"
-              />
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
-            </div>
+            <AgentAvatarBadge
+              roleType={assignedAgent.roleType}
+              department={assignedAgent.department}
+              name={assignedAgent.name}
+              size="md"
+              status={assignedAgent.status}
+              showStatusDot
+            />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
               <MessageSquare className="w-5 h-5" />
             </div>
           )}
@@ -421,11 +421,12 @@ export const CustomerChatView: React.FC<Props> = ({ isEmbedded = false }) => {
                   className={`flex items-end gap-2.5 ${isCustomer ? 'justify-end' : 'justify-start'}`}
                 >
                   {!isCustomer && (
-                    <img
-                      src={msg.senderAvatar || assignedAgent?.avatar || '/src/assets/images/agent_carlos_tech_1793027650432.jpg'}
-                      alt={msg.senderName}
-                      referrerPolicy="no-referrer"
-                      className="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-200 mb-1"
+                    <AgentAvatarBadge
+                      roleType={assignedAgent?.roleType || 'agent'}
+                      department={currentTicket?.department || 'soporte'}
+                      name={msg.senderName}
+                      size="xs"
+                      className="mb-1"
                     />
                   )}
 

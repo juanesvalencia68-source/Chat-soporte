@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSupport } from '../context/SupportContext';
 import { AgentProfile } from '../types/support';
+import { AgentAvatarBadge } from './AgentAvatarBadge';
 import {
   Lock,
   Crown,
@@ -141,10 +142,11 @@ export const TeamLeaderLoginModal: React.FC<Props> = ({
                     }`}
                   >
                     <div className="relative shrink-0">
-                      <img
-                        src={leader.avatar}
-                        alt={leader.name}
-                        className="w-10 h-10 rounded-lg object-cover border border-amber-300/80 shadow-2xs"
+                      <AgentAvatarBadge
+                        roleType="team_leader"
+                        department={leader.department}
+                        name={leader.name}
+                        size="md"
                       />
                       {isUnlocked ? (
                         <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 border border-white">

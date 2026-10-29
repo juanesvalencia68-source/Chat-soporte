@@ -4,6 +4,7 @@ import { CreateProfileModal } from './CreateProfileModal';
 import { ShareCustomerLinkModal } from './ShareCustomerLinkModal';
 import { TeamLeaderLoginModal } from './TeamLeaderLoginModal';
 import { AgentProfile } from '../types/support';
+import { AgentAvatarBadge } from './AgentAvatarBadge';
 import { X, UserPlus, Star, Clock, CheckCircle2, ShieldCheck, Crown, Users, Share2, Lock, KeyRound } from 'lucide-react';
 
 interface Props {
@@ -70,11 +71,13 @@ export const ProfilesDirectoryModal: React.FC<Props> = ({ isOpen, onClose }) => 
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <img
-                      src={agent.avatar}
-                      alt={agent.name}
-                      referrerPolicy="no-referrer"
-                      className="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0"
+                    <AgentAvatarBadge
+                      roleType={agent.roleType}
+                      department={agent.department}
+                      name={agent.name}
+                      size="lg"
+                      status={agent.status}
+                      showStatusDot
                     />
 
                     <div className="min-w-0 flex-1">

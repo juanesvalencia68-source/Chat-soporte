@@ -3,33 +3,19 @@ import { useSupport } from '../context/SupportContext';
 import { DepartmentId, UserRole } from '../types/support';
 import { DEPARTMENTS } from '../data/initialData';
 import { X, UserPlus, Check, Sparkles, Crown, Users } from 'lucide-react';
+import { AgentAvatarBadge } from './AgentAvatarBadge';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const AVATAR_OPTIONS = [
-  {
-    url: '/src/assets/images/leader_jeremy_adams_1793030244749.jpg',
-    label: 'Jeremy Adams (Líder)',
-  },
-  {
-    url: '/src/assets/images/leader_lucas_wilder_1793030379044.jpg',
-    label: 'Lucas Wilder (Líder)',
-  },
-  {
-    url: '/src/assets/images/agent_carlos_tech_1793027650432.jpg',
-    label: 'Ingeniería / Soporte',
-  },
-  {
-    url: '/src/assets/images/agent_elena_billing_1793027651667.jpg',
-    label: 'Operaciones & Trámites',
-  },
-  {
-    url: '/src/assets/images/agent_sofia_success_1793027651578.jpg',
-    label: 'Investigación / Atención',
-  },
+const AVATAR_OPTIONS: { id: string; roleType: UserRole; department: DepartmentId; label: string }[] = [
+  { id: 'badge-leader-soporte', roleType: 'team_leader', department: 'soporte', label: 'Líder Soporte' },
+  { id: 'badge-leader-procesos', roleType: 'team_leader', department: 'procesos', label: 'Líder Procesos' },
+  { id: 'badge-soporte', roleType: 'agent', department: 'soporte', label: 'Soporte Técnico' },
+  { id: 'badge-procesos', roleType: 'agent', department: 'procesos', label: 'Trámites y Procesos' },
+  { id: 'badge-estafa', roleType: 'agent', department: 'estafa', label: 'Seguridad y Fraude' },
 ];
 
 export const CreateProfileModal: React.FC<Props> = ({ isOpen, onClose }) => {
@@ -42,7 +28,7 @@ export const CreateProfileModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [teamLeaderId, setTeamLeaderId] = useState<string>('');
   const [email, setEmail] = useState('');
   const [statusBio, setStatusBio] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_OPTIONS[0].url);
+  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_OPTIONS[0].id);
   const [initialGreeting, setInitialGreeting] = useState('');
 
   if (!isOpen) return null;
@@ -184,25 +170,27 @@ export const CreateProfileModal: React.FC<Props> = ({ isOpen, onClose }) => {
           {/* Avatar selection */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Foto de Perfil
+              Icono de Atención al Cliente
             </label>
-            <div className="grid grid-cols-6 gap-2">
-              {AVATAR_OPTIONS.map((av, idx) => (
+            <div className="grid grid-cols-5 gap-2">
+              {AVATAR_OPTIONS.map((av) => (
                 <button
-                  key={idx}
+                  key={av.id}
                   type="button"
-                  onClick={() => setSelectedAvatar(av.url)}
-                  className={`relative rounded-lg overflow-hidden border-2 p-0.5 transition-all aspect-square ${
-                    selectedAvatar === av.url ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-300'
+                  onClick={() => setSelectedAvatar(av.id)}
+                  className={`relative rounded-xl overflow-hidden border-2 p-2 transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                    selectedAvatar === av.id ? 'border-indigo-600 ring-2 ring-indigo-200 bg-indigo-50/50' : 'border-slate-200 hover:border-slate-300 bg-slate-50'
                   }`}
                 >
-                  <img
-                    src={av.url}
-                    alt={av.label}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover rounded-md"
+                  <AgentAvatarBadge
+                    roleType={av.roleType}
+                    department={av.department}
+                    size="md"
                   />
-                  {selectedAvatar === av.url && (
+                  <span className="text-[10px] font-medium text-slate-600 truncate max-w-full text-center">
+                    {av.label}
+                  </span>
+                  {selectedAvatar === av.id && (
                     <div className="absolute top-1 right-1 bg-indigo-600 text-white rounded-full p-0.5 shadow-xs">
                       <Check className="w-2.5 h-2.5" />
                     </div>

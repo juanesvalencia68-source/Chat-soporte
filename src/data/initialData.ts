@@ -26,7 +26,7 @@ export const INITIAL_AGENTS: AgentProfile[] = [
   {
     id: 'leader-jeremy',
     name: 'Jeremy Adams',
-    avatar: '/src/assets/images/leader_jeremy_adams_1793030244749.jpg',
+    avatar: 'badge-support',
     role: 'Team Leader de Soporte & Seguridad',
     roleType: 'team_leader',
     department: 'soporte',
@@ -58,7 +58,7 @@ export const INITIAL_AGENTS: AgentProfile[] = [
   {
     id: 'leader-lucas',
     name: 'Lucas Wilder',
-    avatar: '/src/assets/images/leader_lucas_wilder_1793030379044.jpg',
+    avatar: 'badge-procesos',
     role: 'Team Leader de Procesos & Trámites',
     roleType: 'team_leader',
     department: 'procesos',
@@ -92,7 +92,7 @@ export const INITIAL_AGENTS: AgentProfile[] = [
   {
     id: 'agent-carlos',
     name: 'Carlos Mendoza',
-    avatar: '/src/assets/images/agent_carlos_tech_1793027650432.jpg',
+    avatar: 'badge-soporte',
     role: 'Especialista Senior de Soporte',
     roleType: 'agent',
     department: 'soporte',
@@ -126,7 +126,7 @@ export const INITIAL_AGENTS: AgentProfile[] = [
   {
     id: 'agent-felipe',
     name: 'Felipe Correa',
-    avatar: '/src/assets/images/agent_carlos_tech_1793027650432.jpg',
+    avatar: 'badge-soporte',
     role: 'Ingeniero de Diagnóstico Técnico',
     roleType: 'agent',
     department: 'soporte',
@@ -150,7 +150,7 @@ export const INITIAL_AGENTS: AgentProfile[] = [
   {
     id: 'agent-elena',
     name: 'Elena Vega',
-    avatar: '/src/assets/images/agent_elena_billing_1793027651667.jpg',
+    avatar: 'badge-procesos',
     role: 'Especialista de Trámites y Procesos',
     roleType: 'agent',
     department: 'procesos',
@@ -184,7 +184,7 @@ export const INITIAL_AGENTS: AgentProfile[] = [
   {
     id: 'agent-mateo',
     name: 'Mateo Valenzuela',
-    avatar: '/src/assets/images/agent_mateo_sales_1793027650993.jpg',
+    avatar: 'badge-procesos',
     role: 'Auditor de Procesos & Cumplimiento',
     roleType: 'agent',
     department: 'procesos',
@@ -208,7 +208,7 @@ export const INITIAL_AGENTS: AgentProfile[] = [
   {
     id: 'agent-sofia',
     name: 'Sofía Restrepo',
-    avatar: '/src/assets/images/agent_sofia_success_1793027651578.jpg',
+    avatar: 'badge-estafa',
     role: 'Analista de Prevención de Fraude & Estafas',
     roleType: 'agent',
     department: 'estafa',
@@ -237,7 +237,7 @@ export const INITIAL_AGENTS: AgentProfile[] = [
   {
     id: 'agent-camila',
     name: 'Camila Ríos',
-    avatar: '/src/assets/images/agent_elena_billing_1793027651667.jpg',
+    avatar: 'badge-estafa',
     role: 'Investigadora de Incidentes de Seguridad',
     roleType: 'agent',
     department: 'estafa',

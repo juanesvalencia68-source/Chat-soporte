@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSupport } from '../context/SupportContext';
 import { AgentProfile } from '../types/support';
 import { ShareCustomerLinkModal } from './ShareCustomerLinkModal';
+import { AgentAvatarBadge } from './AgentAvatarBadge';
 import {
   X,
   Crown,
@@ -174,12 +175,7 @@ export const TeamLeaderManagementModal: React.FC<Props> = ({ isOpen, onClose, te
                     : 'bg-slate-100/80 border-slate-200 hover:bg-white text-slate-700'
                 }`}
               >
-                <img
-                  src={tl.avatar}
-                  alt={tl.name}
-                  referrerPolicy="no-referrer"
-                  className="w-9 h-9 rounded-lg object-cover border border-slate-200"
-                />
+                <AgentAvatarBadge roleType="team_leader" department={tl.department} name={tl.name} size="sm" />
                 <div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-slate-900">{tl.name}</span>
@@ -201,17 +197,12 @@ export const TeamLeaderManagementModal: React.FC<Props> = ({ isOpen, onClose, te
         {/* Selected Leader Summary Bar */}
         <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-50/60 to-indigo-50/40 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="relative">
-              <img
-                src={currentLeader.avatar}
-                alt={currentLeader.name}
-                referrerPolicy="no-referrer"
-                className="w-14 h-14 rounded-xl object-cover border-2 border-white shadow-xs"
-              />
-              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold shadow-xs">
-                <Crown className="w-3 h-3" />
-              </span>
-            </div>
+            <AgentAvatarBadge
+              roleType="team_leader"
+              department={currentLeader.department}
+              name={currentLeader.name}
+              size="lg"
+            />
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-slate-900">{currentLeader.name}</span>
@@ -406,12 +397,7 @@ export const TeamLeaderManagementModal: React.FC<Props> = ({ isOpen, onClose, te
                     className="p-2.5 bg-white border border-slate-200 rounded-lg flex items-center justify-between gap-2 shadow-2xs hover:border-indigo-300 transition-colors"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <img
-                        src={ag.avatar}
-                        alt={ag.name}
-                        referrerPolicy="no-referrer"
-                        className="w-8 h-8 rounded-full object-cover shrink-0"
-                      />
+                      <AgentAvatarBadge roleType="agent" department={ag.department} name={ag.name} size="xs" />
                       <div className="min-w-0">
                         <span className="text-xs font-semibold text-slate-900 block truncate">{ag.name}</span>
                         <span className="text-[10px] text-slate-500 block truncate">{ag.role}</span>
@@ -525,11 +511,13 @@ export const TeamLeaderManagementModal: React.FC<Props> = ({ isOpen, onClose, te
                   className="p-3.5 bg-white border border-slate-200 rounded-xl flex items-start justify-between gap-3 shadow-2xs hover:border-slate-300 transition-colors"
                 >
                   <div className="flex items-start gap-2.5 min-w-0">
-                    <img
-                      src={agent.avatar}
-                      alt={agent.name}
-                      referrerPolicy="no-referrer"
-                      className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0"
+                    <AgentAvatarBadge
+                      roleType="agent"
+                      department={agent.department}
+                      name={agent.name}
+                      size="md"
+                      status={agent.status}
+                      showStatusDot
                     />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">

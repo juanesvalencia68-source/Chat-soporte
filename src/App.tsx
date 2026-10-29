@@ -47,7 +47,7 @@ function AppContent() {
   const [leaderAuthModalOpen, setLeaderAuthModalOpen] = useState(false);
   const [targetAuthLeaderId, setTargetAuthLeaderId] = useState<string | null>(null);
 
-  // Check URL query parameters and pathname on load to support direct links:
+  // Check URL query parameters and pathname on initial load to support direct links:
   // e.g. /leader or /team-leader or /agente or /chat-soporte or /?portal=leader
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -104,12 +104,8 @@ function AppContent() {
         setViewMode('agent');
         return;
       }
-
-      // 3. Default or /chat-soporte -> Customer portal (always start with a fresh new request form)
-      setActiveCustomerTicketId(null);
-      setViewMode('client');
     }
-  }, [agents, setViewMode, setActiveLeaderId, setActiveCustomerTicketId]);
+  }, []);
 
   // Listen to hash changes (e.g. user types #leader or #agente without full reload)
   useEffect(() => {
