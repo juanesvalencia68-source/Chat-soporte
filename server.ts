@@ -287,7 +287,12 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.resolve(__dirname, 'dist');
+    // Find dist directory whether running from root (server.ts) or inside dist (compiled server.js)
+    const fs = await import('fs');
+    let distPath = path.resolve(__dirname, 'dist');
+    if (!fs.existsSync(distPath) && fs.existsSync(path.resolve(__dirname, 'index.html'))) {
+      distPath = __dirname;
+    }
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
       res.sendFile(path.resolve(distPath, 'index.html'));
